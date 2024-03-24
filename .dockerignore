@@ -1,0 +1,8 @@
+# Exclude development and temporary files
+*.pyc
+*.pyo
+*.pyd
+__pycache__
+db.sqlite3
+media/
+staticfiles/

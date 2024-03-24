@@ -1,0 +1,12 @@
+# Virtual environment
+myenv/
+
+# Compiled Python files
+**/*.pyc
+**/__pycache__/
+
+# SQLite database file
+db.sqlite3
+
+# STEPS 
+steps.md
