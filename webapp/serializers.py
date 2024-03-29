@@ -1,5 +1,5 @@
 from rest_framework import serializers 
-from .models import CustomUserModel  , FriendRequest , FriendList
+from .models import CustomUserModel  , FriendRequest , FriendList , Messaging , Post
 from django.contrib.auth import get_user_model
 
 # VALIDATORS 
@@ -54,3 +54,20 @@ class FriendListSerializer(serializers.ModelSerializer):
         model = FriendList 
         fields = ('id','user','friend')
     
+# MESSAGING
+class MessagingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Messaging
+        fields = '__all__' 
+
+
+# POST
+class PostSerializer(serializers.Serializer):
+    id              = serializers.IntegerField(read_only=True)
+    created_by      = serializers.IntegerField()
+    title           = serializers.CharField(max_length=100)
+    content         = serializers.CharField(max_length=10000)  # Large max_length to mimic TextField
+    created_at      = serializers.DateTimeField(read_only=True)
+
+    def create(self,validated_data):
+        return Post.objects.create(**validated_data)

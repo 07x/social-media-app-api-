@@ -26,7 +26,10 @@ from django.contrib.auth import get_user_model
 from .serializers import (
     CustomUserSerializer , 
     FriendRequestSerializer , 
-    FriendListSerializer)
+    FriendListSerializer,
+    MessagingSerializer,
+    PostSerializer)
+
 from django.contrib.auth import authenticate 
 
 # EXCEPTIONS 
@@ -40,7 +43,6 @@ User = get_user_model()
 """
     1. **User Management APIs:**
 """
-# REGISTRATION 
 class RegistrationView(APIView):
     def post(self,request):
         
@@ -53,10 +55,10 @@ class RegistrationView(APIView):
             # GET DATA 
             response = {
                 'message'           : 'user register succesfully',
-                'response_code'     : 200, 
+                'response_code'     : 201, 
                 'data'              : serialized_user.data
             }
-            return Response(response,status=status.HTTP_200_OK)
+            return Response(response,status=status.HTTP_201_CREATED)
 
         else:
             response = {
@@ -65,7 +67,6 @@ class RegistrationView(APIView):
             }
             return Response(response,status=status.HTTP_400_BAD_REQUEST)
 
-# LOGIN 
 class LoginView(APIView):
     # POST 
     def post(self,request):
@@ -92,7 +93,6 @@ class LoginView(APIView):
             }
             return Response(response,status=status.HTTP_400_BAD_REQUEST)
         
-# USER DETAILS 
 class UserDetails(APIView):
     """
     Retrieve, update or delete a snippet instance.
@@ -131,6 +131,7 @@ class UserDetails(APIView):
                 'message'       : serialzier.errors,
                 'response_code' : 400}
             return Response(response,status=status.HTTP_400_BAD_REQUEST)
+
 
 """
     2. **Friendship Management APIs:**
@@ -217,6 +218,10 @@ class AcceptFriendRequestView(APIView):
             return Response(new_error, status=status.HTTP_400_BAD_REQUEST)
         
 class RejectFriendRequestView(APIView):
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes     = [IsAuthenticated]
+
     def get_object(self, pk):
         try:
             return FriendRequest.objects.get(pk=pk)
@@ -243,6 +248,9 @@ class RejectFriendRequestView(APIView):
 
 class UnfriendView(APIView):
 
+    authentication_classes = [JWTAuthentication]
+    permission_classes     = [IsAuthenticated]
+
     def get_object(self,pk):
         try:
             return FriendList.objects.get(pk=pk)
@@ -260,3 +268,116 @@ class UnfriendView(APIView):
         }
         return Response(resposne,status=status.HTTP_204_NO_CONTENT)
 
+"""
+    3. **Messaging APIs:**
+"""
+class ChatView(APIView):
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes     = [IsAuthenticated]
+
+    def get_object(self, pk):
+        try:
+            return User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            raise ObjectNotFoundException
+        
+    def post(self,request,pk):
+        user = self.get_object(pk=pk)
+        serializer = MessagingSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            response = {
+
+                'messsge'           :'chat sent successfully',
+                'response_code'     : 200,
+            }
+            return Response(response,status=status.HTTP_200_OK)
+        else:
+            response = {
+
+                'messsge'           :serializer.errors,
+                'response_code'     : 400,}
+            return Response(response,status=status.HTTP_400_BAD_REQUEST)
+
+class ChatListView(APIView):
+
+    # AUTH & PERMISSION 
+    authentication_classes = [JWTAuthentication]
+    permission_classes     = [IsAuthenticated]
+
+    # GET USER 
+    def get_object(self,pk):
+        try:
+            return  User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            raise ObjectNotFoundException
+
+    def get(self,request,pk):
+        chat_list = Messaging.objects.all()
+        
+        # SENDER & RECEIVER 
+        owner   = request.user 
+        user    = self.get_object(pk=pk) 
+
+        print(owner,'owner')
+        print(user,'user')
+
+        # GET MESSAGE 
+        queryset1 = chat_list.filter(sender=owner,receiver=user)
+        queryset2 = chat_list.filter(sender=user,receiver=owner)
+
+
+        queryset  =  queryset1.union(queryset2)
+        serializer = MessagingSerializer(queryset,many=True)
+
+        respons = {
+            'message'      : 'get all chats data',
+            'response_code': 200, 
+            'chat_list'    : serializer.data
+        }
+        # 
+        return Response(respons,status=status.HTTP_200_OK)
+    
+class CreateListPostView(APIView):
+
+    # AUTH & PERMISSION 
+    authentication_classes = [JWTAuthentication]
+    permission_classes     = [IsAuthenticated]
+
+
+
+    def post(self,request):
+        user_id = request.user.id
+
+        
+        serializer = PostSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.validated_data['created_by'] = user_id
+            serializer.save()
+
+            response = {
+                'message'       :'post created successfully',
+                'response_code' :  201}
+
+            return Response(response,status=status.HTTP_201_CREATED)   
+        else:
+            response = {
+                'message'       :serializer.errors,
+                'response_code' :  400
+            }
+            return Response(response,status=status.HTTP_400_BAD_REQUEST)  
+
+    def get(self,request):
+        posts = Post.objects.filter(created_by=request.user)
+
+        serializer  = PostSerializer(posts,many=True)
+        
+        print(serializer.data)
+        response = {
+            'message'       : 'get post successfully',
+            'response_code' : 200, 
+            'data'          : serializer.data 
+        }
+
+        return Response(response,status=status.HTTP_200_OK)
