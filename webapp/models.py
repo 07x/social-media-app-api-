@@ -8,7 +8,6 @@ REQUEST_STATUS = (
     ("PENDING","PENDING"),
 )
 
-
 # MODELS HERE 
 class CustomUserModel(AbstractUser):
     # LETS MAKE SOME CUSTOME ROLES 
@@ -93,10 +92,12 @@ class Post(models.Model):
         return str(self.created_at) +'|'+ str(self.created_by) +'|'+ str(self.title)
 
 class Reactions(models.Model):
-    user            = models.ForeignKey(CustomUserModel,on_delete=models.CASCADE,related_name='reactions')
+    user            = models.ForeignKey(CustomUserModel,on_delete=models.CASCADE,related_name='reactions',)
     post            = models.ForeignKey(Post,on_delete=models.CASCADE,related_name='reactions')
     status          = models.BooleanField(default=True)
 
+    # class Meta:
+    #     unique_together = ('user', 'post')
 
     def __str__(self):
         return str(self.status) +'|'+ str(self.user)
@@ -105,7 +106,7 @@ class Comment(models.Model):
     created_by          = models.ForeignKey(CustomUserModel,on_delete=models.CASCADE,)
     post                = models.ForeignKey(Post,on_delete=models.CASCADE)
     comment             = models.CharField(max_length=150,null=True,blank=True)
-    comment_reply_to_id = models.ForeignKey('Comment',on_delete=models.CASCADE,related_name='comment_reply_id')
+    comment_reply_to_id = models.ForeignKey('Comment',on_delete=models.CASCADE,related_name='comment_reply_id',null=True,blank=True)
     created_at          = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

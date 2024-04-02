@@ -11,7 +11,9 @@ from .views import (
     UnfriendView,
     ChatView,
     ChatListView,
-    CreateListPostView)
+    CreateListPostView,
+    PostActivityView,
+    PostCommentView)
 
 urlpatterns = [
     # 1
@@ -32,9 +34,9 @@ urlpatterns = [
     path('chat-message-list/<int:pk>/',ChatListView.as_view(),name='chat_message_list'),
 
     # 4 
-    path('create-list-post/',CreateListPostView.as_view(),name='create_list_post/'),
-
-    
+    path('create-list-post/',CreateListPostView.as_view(),name='create_list_post'),
+    path('post_activity/<int:pk>/',PostActivityView.as_view(),name='post_activity'),
+    path('create-post-comment/<int:pk>/',PostCommentView.as_view(),name='create_post_comment'),
 
 
 ]

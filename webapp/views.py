@@ -18,54 +18,41 @@ from .models import (
     Messaging ,
     FriendList , 
     Reactions , 
-    CustomUserModel , 
     FriendRequest)
 
 from django.contrib.auth import get_user_model
-
 from .serializers import (
     CustomUserSerializer , 
     FriendRequestSerializer , 
     FriendListSerializer,
     MessagingSerializer,
-    PostSerializer)
+    PostSerializer,
+    ReactionSerializer,
+    PostCommentSerializer)
 
 from django.contrib.auth import authenticate 
 
 # EXCEPTIONS 
 from .exceptions import ObjectNotFoundException
-
+from .responses import CustomResponse
 
 # CREATE API's HERE 
 User = get_user_model()
-
 
 """
     1. **User Management APIs:**
 """
 class RegistrationView(APIView):
     def post(self,request):
-        
         serializer = CustomUserSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
             # GER CREATED USER DATA 
             serialized_user = CustomUserSerializer(user)  # Serialize the user object
-
             # GET DATA 
-            response = {
-                'message'           : 'user register succesfully',
-                'response_code'     : 201, 
-                'data'              : serialized_user.data
-            }
-            return Response(response,status=status.HTTP_201_CREATED)
-
+            return CustomResponse(message="user register successfully",data=serializer.data,status=status.HTTP_201_CREATED)
         else:
-            response = {
-                'message'           : serializer.errors,
-                'response_code'     : 400, 
-            }
-            return Response(response,status=status.HTTP_400_BAD_REQUEST)
+            return CustomResponse(message=serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
 class LoginView(APIView):
     # POST 
@@ -85,14 +72,10 @@ class LoginView(APIView):
                 'access': str(refresh.access_token),
                 'data'          : serializer.data,
             }
-            return Response(response,status=status.HTTP_200_OK)
+            return Response(response,status=status.HTTP_200_OK)        
         else:        
-            response = {
-                'message'       : 'unable to find user with this credintials',
-                'response_code' : 400,
-            }
-            return Response(response,status=status.HTTP_400_BAD_REQUEST)
-        
+            return CustomResponse(message="'unable to find user with this credintials'",status=status.HTTP_400_BAD_REQUEST)
+
 class UserDetails(APIView):
     """
     Retrieve, update or delete a snippet instance.
@@ -106,67 +89,38 @@ class UserDetails(APIView):
             return User.objects.get(pk=pk)
         except User.DoesNotExist:
             raise ObjectNotFoundException
-
     def get(self, request, pk, format=None):
         user = self.get_object(pk)
         serializer = CustomUserSerializer(user)
-        response = {
-                'message'       : 'get user data successfully',
-                'response_code' : 200, 
-                'data'          : serializer.data}
-        return Response(response,status=status.HTTP_200_OK)
-
+        return CustomResponse(message="get user data successfully",data=serializer.data,status=status.HTTP_200_OK)
     def put(self,request,pk):
         user = self.get_object(pk)
-        serialzier = CustomUserSerializer(user,data=request.data)
-        if serialzier.is_valid():
-            serialzier.save()
-            response = {
-                'message'       :'data updated succesfully',
-                'response_code' : 200,
-                'data'          : serialzier.data}
-            return Response(response,status=status.HTTP_200_OK)
+        serializer = CustomUserSerializer(user,data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse(message='data updated succesfully',data=serializer.data,status=status.HTTP_200_OK)
         else:
-            response = {
-                'message'       : serialzier.errors,
-                'response_code' : 400}
-            return Response(response,status=status.HTTP_400_BAD_REQUEST)
-
-
+            return CustomResponse(message=serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 """
     2. **Friendship Management APIs:**
 """
 class FriendListView(APIView):
 
     def get(self,request):
-        
         friends    = FriendList.objects.filter(user=request.user)
         serializer = FriendListSerializer(friends,many=True)
-        
-        response = {
-            'message'       : 'get friend list data successfully',
-            'response_code' : 200, 
-            'data'          : serializer.data
-        }
-        return Response(response,status=status.HTTP_200_OK)
+        return CustomResponse(message="get friend list data successfully",data=serializer.data,status=status.HTTP_200_OK)
 
 class FriendRequestListView(APIView):
     def get(self,request):        
         friends    = FriendRequest.objects.filter(receiver=request.user)
         serializer = FriendRequestSerializer(friends,many=True)
-        response = {
-            'message'       : 'get friend request list data successfully',
-            'response_code' : 200, 
-            'count'         : friends.count(),
-            'data'          : serializer.data
-        }
-        return Response(response,status=status.HTTP_200_OK)
+        return CustomResponse(message="get friend list data successfully",data=serializer.data,status=status.HTTP_200_OK)
 
 class SendFriendReqestView(APIView):
-
     # AUTH 
-    # authentication_classes = [JWTAuthentication]
-    # permission_classes     = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    permission_classes     = [IsAuthenticated]
 
     def post(self,request):        
         serializer = FriendRequestSerializer(data=request.data)
@@ -178,18 +132,9 @@ class SendFriendReqestView(APIView):
             # UPDATED SENDER DETAILS 
             serializer.validated_data['sender'] = sender
             serializer.save()        
-            response = {
-                'message'       : 'your request sent succesfully',
-                'response_code' : 201,
-                'data'          : serializer.data
-            }
-            return Response(response,status=status.HTTP_201_CREATED)
+            return CustomResponse(message='your request sent succesfully',data=serializer.data,status=status.HTTP_201_CREATED)
         else:
-            response = {
-                'message'       : serializer.errors,
-                'response_code' : 400,
-            }
-            return Response(response,status=status.HTTP_400_BAD_REQUEST)
+            return CustomResponse(message=serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
 class AcceptFriendRequestView(APIView):
     def get_object(self, pk):
@@ -206,16 +151,9 @@ class AcceptFriendRequestView(APIView):
             # CREATE TASK INSTANCE
             serializer.validated_data['status'] = 'ACCEPTED'
             serializer.save()
-            response = {
-                    'message'       : 'friend reqest accepted successfully',
-                    'response_code' : 200}
-            return Response(response,status=status.HTTP_200_OK)
+            return CustomResponse(message= 'friend reqest accepted successfully',status=status.HTTP_200_OK)
         else:
-            default_errors = serializer.errors
-            new_error = {}
-            for field_name, field_errors in default_errors.items():
-                new_error[field_name] = field_errors[0]
-            return Response(new_error, status=status.HTTP_400_BAD_REQUEST)
+            return CustomResponse(message=serializer.errors,status=status.HTTP_400_BAD_REQUEST)
         
 class RejectFriendRequestView(APIView):
 
@@ -235,16 +173,9 @@ class RejectFriendRequestView(APIView):
             # CREATE TASK INSTANCE
             serializer.validated_data['status'] = 'REJECTED'
             serializer.save()
-            response = {
-                    'message'       : 'friend reqest canceled successfully',
-                    'response_code' : 200}
-            return Response(response,status=status.HTTP_200_OK)
+            return CustomResponse(message='friend reqest canceled successfully',status=status.HTTP_200_OK)
         else:
-            default_errors = serializer.errors
-            new_error = {}
-            for field_name, field_errors in default_errors.items():
-                new_error[field_name] = field_errors[0]
-            return Response(new_error, status=status.HTTP_400_BAD_REQUEST)
+            return CustomResponse(message= serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
 class UnfriendView(APIView):
 
@@ -261,13 +192,7 @@ class UnfriendView(APIView):
         # GET INSTANCE
         friend = self.get_object(pk=pk)
         friend.delete()
-
-        resposne = {
-            'message'           : 'user unfriend successfully',
-            'response_code'     : 204
-        }
-        return Response(resposne,status=status.HTTP_204_NO_CONTENT)
-
+        return CustomResponse(message='user unfriend successfully',status=status.HTTP_204_NO_CONTENT)
 """
     3. **Messaging APIs:**
 """
@@ -287,18 +212,9 @@ class ChatView(APIView):
         serializer = MessagingSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            response = {
-
-                'messsge'           :'chat sent successfully',
-                'response_code'     : 200,
-            }
-            return Response(response,status=status.HTTP_200_OK)
+            return CustomResponse(message='chat sent successfully',status=status.HTTP_200_OK)
         else:
-            response = {
-
-                'messsge'           :serializer.errors,
-                'response_code'     : 400,}
-            return Response(response,status=status.HTTP_400_BAD_REQUEST)
+            return CustomResponse(message=serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
 class ChatListView(APIView):
 
@@ -312,72 +228,88 @@ class ChatListView(APIView):
             return  User.objects.get(pk=pk)
         except User.DoesNotExist:
             raise ObjectNotFoundException
-
     def get(self,request,pk):
         chat_list = Messaging.objects.all()
         
         # SENDER & RECEIVER 
         owner   = request.user 
         user    = self.get_object(pk=pk) 
-
-        print(owner,'owner')
-        print(user,'user')
-
         # GET MESSAGE 
         queryset1 = chat_list.filter(sender=owner,receiver=user)
         queryset2 = chat_list.filter(sender=user,receiver=owner)
-
-
         queryset  =  queryset1.union(queryset2)
         serializer = MessagingSerializer(queryset,many=True)
-
-        respons = {
-            'message'      : 'get all chats data',
-            'response_code': 200, 
-            'chat_list'    : serializer.data
-        }
-        # 
-        return Response(respons,status=status.HTTP_200_OK)
-    
+        return CustomResponse(message='get all chats data',data=serializer.data,status=status.HTTP_200_OK)
+   
 class CreateListPostView(APIView):
 
     # AUTH & PERMISSION 
     authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
-
-
     def post(self,request):
         user_id = request.user.id
-
-        
         serializer = PostSerializer(data=request.data)
         if serializer.is_valid():
             serializer.validated_data['created_by'] = user_id
             serializer.save()
-
-            response = {
-                'message'       :'post created successfully',
-                'response_code' :  201}
-
-            return Response(response,status=status.HTTP_201_CREATED)   
+            return CustomResponse(message='post created successfully',tatus=status.HTTP_201_CREATED)
         else:
-            response = {
-                'message'       :serializer.errors,
-                'response_code' :  400
-            }
-            return Response(response,status=status.HTTP_400_BAD_REQUEST)  
-
+            return CustomResponse(message=serializer.errors,tatus=status.HTTP_400_BAD_REQUEST)
     def get(self,request):
-        posts = Post.objects.filter(created_by=request.user)
-
+        friend_list = list(FriendList.objects.filter(user=request.user).values_list('friend__id',flat=True))
+        posts = Post.objects.filter(created_by__id__in=friend_list)
         serializer  = PostSerializer(posts,many=True)
-        
-        print(serializer.data)
-        response = {
-            'message'       : 'get post successfully',
-            'response_code' : 200, 
-            'data'          : serializer.data 
-        }
+        return CustomResponse(message='get post successfully',data=serializer.data,status=status.HTTP_200_OK)
 
-        return Response(response,status=status.HTTP_200_OK)
+class PostActivityView(APIView):
+    
+    # AUTH 
+    authentication_classes = [JWTAuthentication]
+    permission_classes     = [IsAuthenticated]
+
+    # GET OBJECT 
+    def get_obj(self,pk):
+        try:
+            return Post.objects.get(pk=pk)
+        except Exception:
+            raise ObjectNotFoundException
+
+    def patch(self,request,pk):
+        # POST
+        flag = request.data.get('flag')
+        if flag =='' or flag is None:
+            return Response({'message':'please provide required fields','response_code':400})
+
+        if flag =='1':
+            serializer = ReactionSerializer(data=request.data)
+            if serializer.is_valid():
+                
+                # UPDATE 
+                serializer.validated_data['user']       = request.user
+                serializer.validated_data['post']       =  self.get_obj(pk)
+                serializer.save()
+                return CustomResponse(message='post responsed successfully',status=status.HTTP_201_CREATED)
+            else:   
+                return CustomResponse(message=serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+
+        else:
+            post_reaction = Reactions.objects.get(user=request.user)
+            post_reaction.delete()
+            return CustomResponse(message='post responsed successfully',status=status.HTTP_201_CREATED)
+
+class PostCommentView(APIView):
+    def get_object(self, pk):
+        try:
+            return Post.objects.get(pk=pk)
+        except Post.DoesNotExist:
+            raise ObjectNotFoundException
+
+    def post(self,request,pk):
+        serializer = PostCommentSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save(post=self.get_object(pk))
+            return CustomResponse(message='comment done successfully',status=status.HTTP_201_CREATED)
+        else:
+            return CustomResponse(message=serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+    
